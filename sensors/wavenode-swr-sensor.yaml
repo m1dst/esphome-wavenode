@@ -1,0 +1,19 @@
+# variables needed
+# name
+# id_fwd  id of the fwd power sensor
+# id_ref  id of the ref power sensor
+# state_topic topic to publish the state to
+
+#SWR Sensor
+- platform: template
+  name: "$name"
+  lambda: |-
+    if ( id(${id_fwd}).state < .1 || id(${id_ref}).state < .01){
+      return 1;
+    }else{
+      return ( 1.0 + sqrt( id(${id_ref}).state / id(${id_fwd}).state) ) / ( 1.0 - sqrt( id(${id_ref}).state / id(${id_fwd}).state) );
+    }
+  update_interval: 125ms
+  state_topic: $state_topic
+  filters:
+    - delta: 0.01

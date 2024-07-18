@@ -1,0 +1,76 @@
+# variables needed
+# adc_id  id of the adc that provides the values
+# multiplexer_pin   adc pin that provides the rev voltage
+# name
+# id  unique id without spaces
+# topic_prefix  topic prefix to publish state to. Will resolve to ${topic_prefix}/ref/state
+# gain  2.048 for 300w sensor or 4.096 for high pwr sensor
+
+- platform: ads1115
+  id: ${id}
+  name: $name
+  state_topic: $state_topic
+  multiplexer: $multiplexer_pin
+  ads1115_id: ${adc_id}
+  gain: $gain
+  sps: $sps
+  update_interval: 7ms
+  state_class: "measurement"
+  device_class: "power"
+  unit_of_measurement: "W"
+  accuracy_decimals: 2
+  filters:
+    - lambda: |-
+        struct Point
+        {
+            float x;
+            float y;
+        };
+        Point map[22] = {
+          { 0.000, 0.0 }, 
+          { 0.035, 1.0 },
+          { 0.065, 2.0 },
+          { 0.085, 3.0 },
+          { 0.105, 4.0 },
+          { 0.125, 5.0 },
+          { 0.200, 10.0 },
+          { 0.350, 25.0 },
+          { 0.510, 50.0 },
+          { 0.625, 75.0 },
+          { 0.757, 100.0 },
+          { 0.852, 125.0 },
+          { 0.946, 150.0 },
+          { 1.020, 175.0 },
+          { 1.100, 200.0 },
+          { 1.224, 300.0 },
+          { 1.760, 550.0 },
+          { 2.150, 810.0 },
+          { 2.440, 1040.0 },
+          { 2.710, 1290.0 },
+          { 2.860, 1440.0 },
+          { 3.000, 1600.0 }
+        };
+
+        ESP_LOGD("wavenode.filter.map.ref", "%s: Incoming Voltage=%fV", id(${id}).get_name().c_str(), x);
+
+        if(x < .002) return 0.0;
+
+        int count = sizeof(map)/sizeof(map[0]);
+        for(int i = 1; i < count; i++){
+          if( x < map[i].x ){
+            ESP_LOGD("wavenode.filter.map.ref", "%s: Interpolate range: %.1fW - %.1fW", id(${id}).get_name().c_str(), map[i - 1].y , map[i].y);
+            float w = lerp( (x - map[i-1].x) / (map[i].x - map[i - 1].x) , map[i-1].y, map[i].y  );
+            ESP_LOGD("wavenode.filter.map.ref", "%s: Interpolated Watts=%fW", id(${id}).get_name().c_str(), w);
+            return w;
+          }  
+        }
+
+        ESP_LOGE("wavenode.filter.map.ref", "%s: Voltage out of range: %fV", id(${id}).get_name().c_str(), x);
+
+        return map[count-1].y;
+
+    - max:
+        window_size: 5
+        send_every: 5
+    - delta: .01
+

@@ -1,0 +1,22 @@
+substitutions:
+  name: "esphome-wavenode"
+  friendly_name: "Wavenode SWR Meter"
+  project_name: "M1DST Wavenode SWR Meter"
+  project_version: "0.1"
+  log_level: "ERROR"
+
+dashboard_import:
+  package_import_url: github://m1dst/esphome-wavenode/esphome-wavenode.yaml@main
+  import_full_config: false
+
+sensor:
+  # Fwd power sensor port 1
+  - <<: !include 
+      file: ../sensors/wavenode-fwd-sensor.yaml 
+      vars: 
+        multiplexer_pin: 'A0_GND'
+        gain: 2.048
+        name: "$wavenode_pretty_name 1 FWD"
+        adc_id: ads1115_0x48
+        id: wavenode_1_fwd
+        state_topic: $wavenode1-root-topic/port/1/fwd/state
